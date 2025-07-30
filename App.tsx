@@ -1,9 +1,12 @@
 import { useState } from 'react'
 import { SafeAreaView, StatusBar, StyleSheet, TextInput, View, Text, Pressable, FlatList, Alert } from 'react-native';
+import Icon from 'react-native-vector-icons/Feather';
 
 function App() {
   const [text, setText] = useState("");
-  const [todo, setTodo] = useState([]);
+  const [todo, setTodo] = useState([] as any);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingIndex, seteditingIndex] = useState(null);
 
   const handleSubmit = () => {
     if(text !== ""){
@@ -14,8 +17,25 @@ function App() {
     }
   }
 
+  const handleDelete = (id) => {
+    setTodo(todo.filter((td) => td['id'] !== id));
+  }  
+
+  const handleEdit = (item) => {
+    setIsEditing(true);
+    seteditingIndex(item['id']);
+    setText(item['name']);
+  }
+
+  const handleEditSubmit = () => {
+    setTodo(todo.map(item => (
+      item['id'] === editingIndex ? {...item, name: text} : item
+    )));
+    setText("");
+  }
+
   return (
-      <SafeAreaView>
+      <SafeAreaView style={styles.mainContainer}>
         <View style={styles.container}>
           <StatusBar 
             backgroundColor="#4000ffff"
@@ -27,21 +47,30 @@ function App() {
             <TextInput
               style={styles.input}
               onChangeText={setText}
-              value={text}
+              value={ text }
             />
             <Pressable style={styles.submitBtn}>
-              <Text style={styles.submitBtnText} onPress={handleSubmit}>Add</Text>
+              <Text style={styles.submitBtnText} onPress={ isEditing ? handleEditSubmit : handleSubmit }>{isEditing ? 'Edit' : 'Add'}</Text>
             </Pressable>
           </View>
           <View style={styles.bottomContainer}>
             <FlatList
               data={todo}
-              renderItem={({item}) => (
+              renderItem={({item, index}) => (
                 <View style={styles.todoItems}>
-                  <Text>{item?.name}</Text>
+                  <Text style={{ width: '80%' }}>{item['name']}</Text>
+                  <View style={{ width: '20%', flexDirection: 'row', gap: 10 }}>
+                    <Pressable onPress={() => handleEdit(item)}>
+                      <Icon name="edit" size={25} color="#4000ffff" />
+                    </Pressable>
+                    <Pressable onPress={() => handleDelete(item['id'])}>
+                      <Icon name="delete" size={25} color="#4000ffff" />
+                    </Pressable>
+                  </View>
                 </View>
               )}
-              keyExtractor={(item) => item?.id}
+              keyExtractor={(item) => item['id']}
+              ItemSeparatorComponent={<View style={{ padding: 5 }} />}
             />
           </View>
         </View>
@@ -50,6 +79,10 @@ function App() {
 }
 
 const styles = StyleSheet.create({
+  mainContainer: {
+    backgroundColor: "red",
+    height: "100%"
+  },
   container: {
     flex: 1
   },
@@ -96,17 +129,21 @@ const styles = StyleSheet.create({
   },
   bottomContainer: {
     backgroundColor: "#fff",
-    minHeight: 500,
+    flex: 1,
     paddingHorizontal: 20
   },
   todoItems: {
-    borderRadius: 0,
-    padding: 20,
+    width: '100%',
+    borderRadius: 1,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
     shadowColor: '#ccc',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 10,
-    elevation: .5,
+    shadowOffset: { width: 10, height: 10 },
+    shadowOpacity:.5,
+    shadowRadius: 20,
+    elevation: 2,
+    flexDirection: 'row',
+    alignContent: 'center'
   }
 });
 
