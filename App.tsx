@@ -1,150 +1,201 @@
-import { useState } from 'react'
-import { SafeAreaView, StatusBar, StyleSheet, TextInput, View, Text, Pressable, FlatList, Alert } from 'react-native';
+import { useState, useEffect } from 'react';
+import {
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  TextInput,
+  View,
+  Text,
+  Pressable,
+  FlatList,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-function App() {
-  const [text, setText] = useState("");
-  const [todo, setTodo] = useState([] as any);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editingIndex, seteditingIndex] = useState(null);
+// Define the todo type
+type TodoItem = {
+  id: string;
+  name: string;
+};
+
+export default function App() {
+  const [text, setText] = useState<string>('');
+  const [todo, setTodo] = useState<TodoItem[]>([]);
+  const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [editingIndex, setEditingIndex] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadTodos = async () => {
+      try {
+        const storedTodos = await AsyncStorage.getItem('todos');
+        if (storedTodos) {
+          setTodo(JSON.parse(storedTodos));
+        }
+      } catch (error) {
+        console.error('Failed to load todos:', error);
+      }
+    };
+    loadTodos();
+  }, []);
+
+  useEffect(() => {
+    const saveTodos = async () => {
+      try {
+        await AsyncStorage.setItem('todos', JSON.stringify(todo));
+      } catch (error) {
+        console.error('Failed to save todos:', error);
+      }
+    };
+    saveTodos();
+  }, [todo]);
 
   const handleSubmit = () => {
-    if(text !== ""){
+    if (text.trim() !== '') {
       setTodo([...todo, { id: Date.now().toString(), name: text }]);
-      setText("");
+      setText('');
     } else {
-      Alert.alert("Kichu add koro");
+      Alert.alert('Please enter something.');
     }
-  }
+  };
 
-  const handleDelete = (id) => {
-    setTodo(todo.filter((td) => td['id'] !== id));
-  }  
+  const handleDelete = (id: string) => {
+    setTodo(todo.filter((td) => td.id !== id));
+  };
 
-  const handleEdit = (item) => {
+  const handleEdit = (item: TodoItem) => {
     setIsEditing(true);
-    seteditingIndex(item['id']);
-    setText(item['name']);
-  }
+    setEditingIndex(item.id);
+    setText(item.name);
+  };
 
   const handleEditSubmit = () => {
-    setTodo(todo.map(item => (
-      item['id'] === editingIndex ? {...item, name: text} : item
-    )));
-    setText("");
-  }
+    if (editingIndex !== null) {
+      setTodo(todo.map(item => item.id === editingIndex ? { ...item, name: text } : item));
+      setText('');
+      setIsEditing(false);
+      setEditingIndex(null);
+    }
+  };
 
   return (
-      <SafeAreaView style={styles.mainContainer}>
-        <View style={styles.container}>
-          <StatusBar 
-            backgroundColor="#4000ffff"
-          />
-          <View style={styles.topview}>
-            <Text style={styles.toptitle}>Todo App</Text>
-          </View>
-          <View style={styles.inputcontainer}>
-            <TextInput
-              style={styles.input}
-              onChangeText={setText}
-              value={ text }
-            />
-            <Pressable style={styles.submitBtn}>
-              <Text style={styles.submitBtnText} onPress={ isEditing ? handleEditSubmit : handleSubmit }>{isEditing ? 'Edit' : 'Add'}</Text>
-            </Pressable>
-          </View>
-          <View style={styles.bottomContainer}>
-            <FlatList
-              data={todo}
-              renderItem={({item, index}) => (
-                <View style={styles.todoItems}>
-                  <Text style={{ width: '80%' }}>{item['name']}</Text>
-                  <View style={{ width: '20%', flexDirection: 'row', gap: 10 }}>
-                    <Pressable onPress={() => handleEdit(item)}>
-                      <Icon name="edit" size={25} color="#4000ffff" />
-                    </Pressable>
-                    <Pressable onPress={() => handleDelete(item['id'])}>
-                      <Icon name="delete" size={25} color="#4000ffff" />
-                    </Pressable>
-                  </View>
-                </View>
-              )}
-              keyExtractor={(item) => item['id']}
-              ItemSeparatorComponent={<View style={{ padding: 5 }} />}
-            />
-          </View>
+    <SafeAreaView style={styles.mainContainer}>
+      <StatusBar backgroundColor="#4000ff" />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.container}
+      >
+        <View style={styles.topview}>
+          <Text style={styles.toptitle}>Todo App</Text>
         </View>
-      </SafeAreaView>
+
+        <View style={styles.inputcontainer}>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter a task"
+            onChangeText={setText}
+            value={text}
+          />
+          <Pressable
+            onPress={isEditing ? handleEditSubmit : handleSubmit}
+            style={styles.submitBtn}
+          >
+            <Text style={styles.submitBtnText}>{isEditing ? 'Edit' : 'Add'}</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.bottomContainer}>
+          <FlatList
+            data={todo}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <View style={styles.todoItems}>
+                <Text style={styles.todoText}>{item.name}</Text>
+                <View style={styles.todoActions}>
+                  <Pressable onPress={() => handleEdit(item)}>
+                    <Icon name="edit" size={25} color="#4000ff" />
+                  </Pressable>
+                  <Pressable onPress={() => handleDelete(item.id)}>
+                    <Icon name="delete" size={25} color="#4000ff" />
+                  </Pressable>
+                </View>
+              </View>
+            )}
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
+          />
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   mainContainer: {
-    backgroundColor: "red",
-    height: "100%"
+    backgroundColor: '#ebebebff',
+    flex: 1,
   },
   container: {
-    flex: 1
+    flex: 1,
   },
   topview: {
-    height: 100, 
-    backgroundColor: "#4000ffff"
+    height: 100,
+    backgroundColor: '#4000ff',
+    justifyContent: 'center',
   },
   toptitle: {
-    color: "#fff",
-    fontWeight: "bold",
+    color: '#fff',
+    fontWeight: 'bold',
     fontSize: 22,
-    textAlign: "center",
-    paddingTop: 15
+    textAlign: 'center',
   },
   inputcontainer: {
-    height: 100, 
-    backgroundColor: "#ffffff",
-    marginTop: -30,
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    display: 'flex',
     flexDirection: 'row',
+    padding: 10,
     alignItems: 'center',
-    justifyContent: 'center'
   },
   input: {
-    maxWidth: "60%",
-    width: "100%",
+    flex: 1,
     borderWidth: 1,
-    height: 40,
-    borderTopLeftRadius: 10,
-    borderBottomLeftRadius: 10
+    borderColor: '#ccc',
+    padding: 10,
+    borderRadius: 5,
+    marginRight: 10,
+    backgroundColor: '#fff',
   },
   submitBtn: {
-    backgroundColor: "#4000ffff",
-    height: 40,
-    justifyContent: 'center',
+    backgroundColor: '#4000ff',
+    paddingVertical: 10,
     paddingHorizontal: 20,
-    borderTopRightRadius: 10,
-    borderBottomRightRadius: 10    
+    borderRadius: 5,
   },
   submitBtnText: {
-    color: "#fff",
+    color: '#fff',
+    fontWeight: 'bold',
   },
   bottomContainer: {
-    backgroundColor: "#fff",
     flex: 1,
-    paddingHorizontal: 20
+    paddingHorizontal: 10,
+    marginTop: 10,
   },
   todoItems: {
     width: '100%',
-    borderRadius: 1,
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    shadowColor: '#ccc',
-    shadowOffset: { width: 10, height: 10 },
-    shadowOpacity:.5,
-    shadowRadius: 20,
-    elevation: 2,
     flexDirection: 'row',
-    alignContent: 'center'
-  }
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 10,
+    borderRadius: 5,
+  },
+  todoText: {
+    width: '75%',
+  },
+  todoActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  separator: {
+    height: 10,
+  },
 });
-
-export default App;
